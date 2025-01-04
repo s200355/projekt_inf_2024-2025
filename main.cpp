@@ -1,4 +1,4 @@
-include <SFML/Graphics.hpp>
+#include <SFML/Graphics.hpp>
 #include <iostream>
 #include <string>
 #include <time.h>
@@ -10,60 +10,72 @@ private:
     sf::RectangleShape startButton;
     sf::RectangleShape descriptionButton;
     sf::RectangleShape historyButton;
+    sf::RectangleShape singlep;
     sf::Font font;
     sf::Text startText;
     sf::Text descriptionText;
     sf::Text historyText;
+    sf::Text singleptext;
     bool startSelected = false;
     bool descriptionSelected = false;
+    bool singlepSelected = false;
 public:
     Menu(sf::RenderWindow& win) : window(win) {
         if (!font.loadFromFile("arial.ttf")) {
             throw std::runtime_error("blad");
         }
+        singlep.setSize({ 220.0f, 80.0f });
+        singlep.setFillColor(sf::Color::Cyan);
+        singlep.setPosition(300.0f, 100.0f);
+        singlep.setOutlineThickness(5.0f);
+        singlep.setOutlineColor(sf::Color::Black);
+
         startButton.setSize({ 220.0f, 80.0f });
         startButton.setFillColor(sf::Color::Cyan);
         startButton.setPosition(300.0f, 200.0f);
         startButton.setOutlineThickness(5.0f);
         startButton.setOutlineColor(sf::Color::Black);
 
+
         descriptionButton.setSize({ 220.0f, 80.0f });
-        descriptionButton.setFillColor(sf::Color::Magenta);
+        descriptionButton.setFillColor(sf::Color::Cyan);
         descriptionButton.setPosition(300.0f, 300.0f);
         descriptionButton.setOutlineThickness(5.0f);
         descriptionButton.setOutlineColor(sf::Color::Black);
+
         historyButton.setSize({ 220.0f, 80.0f });
-        historyButton.setFillColor(sf::Color::Blue);
+        historyButton.setFillColor(sf::Color::Cyan);
         historyButton.setPosition(300.0f, 400.0f);
         historyButton.setOutlineThickness(5.0f);
         historyButton.setOutlineColor(sf::Color::Black);
 
+        singleptext.setFont(font);
+        singleptext.setString("1 osoba");
+        singleptext.setCharacterSize(24);
+        singleptext.setFillColor(sf::Color::Black);
+        singleptext.setPosition(360.0f, 125.0f);
+
         startText.setFont(font);
-        startText.setString("Start");
+        startText.setString("2 osoby");
         startText.setCharacterSize(24);
         startText.setFillColor(sf::Color::Black);
-        startText.setPosition(
-            startButton.getPosition().x + (startButton.getSize().x - startText.getLocalBounds().width) / 2,
-            startButton.getPosition().y + (startButton.getSize().y - startText.getLocalBounds().height) / 2 - 5);
+        startText.setPosition(360.0f, 225.0f);
 
         descriptionText.setFont(font);
         descriptionText.setString("Opis");
         descriptionText.setCharacterSize(24);
         descriptionText.setFillColor(sf::Color::Black);
-        descriptionText.setPosition(
-            descriptionButton.getPosition().x + (descriptionButton.getSize().x - descriptionText.getLocalBounds().width) / 2,
-            descriptionButton.getPosition().y + (descriptionButton.getSize().y - descriptionText.getLocalBounds().height) / 2 - 5);
+        descriptionText.setPosition(380.0f, 325.0f);
 
         historyText.setFont(font);
         historyText.setString("Historia Gier");
         historyText.setCharacterSize(24);
         historyText.setFillColor(sf::Color::Black);
-        historyText.setPosition(
-            historyButton.getPosition().x + (historyButton.getSize().x - historyText.getLocalBounds().width) / 2,
-            historyButton.getPosition().y + (historyButton.getSize().y - historyText.getLocalBounds().height) / 2 - 5);
+        historyText.setPosition(340.0f, 425.0f);
     }
     void handleEvents() {
         sf::Event event;
+        bool selectingMap = false;
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed) {
                 window.close();
@@ -78,18 +90,23 @@ public:
                     else if (descriptionButton.getGlobalBounds().contains(mousePos)) {
                         descriptionSelected = true;
                     }
+                    else if (singlep.getGlobalBounds().contains(mousePos)) {
+                        singlepSelected = true;
+                    }
                 }
             }
         }
     }
     void draw() {
-        window.clear(sf::Color::White);
+        window.clear(sf::Color::Green);
         window.draw(startButton);
         window.draw(descriptionButton);
         window.draw(historyButton);
         window.draw(startText);
         window.draw(descriptionText);
         window.draw(historyText);
+        window.draw(singlep);
+        window.draw(singleptext);
         window.display();
     }
     bool isStartSelected() const {
@@ -98,10 +115,14 @@ public:
     bool isDescriptionSelected() const {
         return descriptionSelected;
     }
+    bool issinglepSelected() const {
+        return singlepSelected;
+    }
     void resetDescriptionSelected() {
         descriptionSelected = false;
     }
 };
+
 class DescriptionWindow {
 private:
     sf::RenderWindow& window;
@@ -114,7 +135,7 @@ public:
         }
 
         descriptionText.setFont(font);
-        descriptionText.setString("Gra dla 2 osob, polegająca na odbiciu pilki tak by przeciwnik nie zdazyl jej odbic.\n Kazde trafienie w sciane przeciwnika daje nam punkt.\n Gra konczy się wraz z osiagnieciem progu 3 punktow.");
+        descriptionText.setString("Gra dla 2 osob lub 1 osoby \n, polegająca na odbiciu pilki tak by przeciwnik nie zdazyl jej odbic.\n Kazde trafienie w sciane przeciwnika daje nam punkt.\n Tryb dla jednej osoby polega na zbiciu bloczkow w celu uzyskania punktow");
         descriptionText.setCharacterSize(16);
         descriptionText.setFillColor(sf::Color::White);
         descriptionText.setPosition(
@@ -173,14 +194,88 @@ public:
         return shape.getGlobalBounds();
     }
 };
+
+class Ball {
+private:
+    sf::CircleShape shape;
+    sf::Vector2f velocity;
+    Paddle bottomPaddle;
+
+public:
+    Ball(float radius, sf::Vector2f position, sf::Vector2f initialVelocity)
+        : shape(radius), velocity(initialVelocity), bottomPaddle(350.0f, 550.0f, 100.0f, 20.0f, 7.0f) {
+        shape.setPosition(position);
+        shape.setFillColor(sf::Color::White);
+    }
+
+    void update(const sf::RenderWindow& window) {
+        // Aktualizacja pozycji
+        sf::Vector2f position = shape.getPosition();
+        position += velocity;
+
+        // Odbicie od ścian
+        if (position.x <= 0 || position.x + shape.getRadius() * 2 >= window.getSize().x) {
+            velocity.x = -velocity.x;
+        }
+        if (position.y <= 0 || position.y + shape.getRadius() * 2 >= window.getSize().y) {
+            velocity.y = -velocity.y;
+        }
+        sf::FloatRect ballBounds = shape.getGlobalBounds();
+        sf::FloatRect paddleBounds = bottomPaddle.getGlobalBounds();
+
+        if (ballBounds.intersects(paddleBounds)) {
+            // Odbicie piłki w górę
+            velocity.y = -std::abs(velocity.y);
+            shape.setPosition(position);
+        }
+        shape.setPosition(position);
+    }
+    void draw(sf::RenderWindow& window) {
+        window.draw(shape);
+        
+    }
+};
+class Paddle1 {
+private:
+    sf::RectangleShape shape;
+    float speed;
+
+public:
+    Paddle1(float x, float y, float width, float height, float speed)
+        : speed(speed) {
+        shape.setSize({ width, height });
+        shape.setFillColor(sf::Color::White);
+        shape.setPosition(x, y);
+    }
+
+    void moveLeft() {
+        if (shape.getPosition().x > 0) {
+            shape.move(-speed, 0);
+        }
+    }
+
+    void moveRight(float windowWidth) {
+        if (shape.getPosition().x + shape.getSize().x < windowWidth) {
+            shape.move(speed, 0);
+        }
+    }
+
+    void draw(sf::RenderWindow& window) {
+        window.draw(shape);
+    }
+
+    sf::FloatRect getGlobalBounds() const {
+        return shape.getGlobalBounds();
+    }
+};
 class BouncingCircle {
 private:
     sf::CircleShape circle;
     sf::Vector2f velocity;
     sf::RenderWindow& window;
     sf::Font font;
-    int &leftScore;
-    int &rightScore;
+    int& leftScore;
+    int& rightScore;
     sf::Text scoreText;
     sf::Clock delayClock;
     bool waitingForRestart = false;
@@ -197,7 +292,7 @@ private:
 
 public:
     BouncingCircle(sf::RenderWindow& win, float radius, const sf::Vector2f& initialPosition, const sf::Vector2f& initialVelocity, int& left, int& right)
-        : window(win), velocity(initialVelocity), leftScore(left), rightScore(right){
+        : window(win), velocity(initialVelocity), leftScore(left), rightScore(right) {
         circle.setRadius(radius);
         circle.setFillColor(sf::Color::Red);
         circle.setPosition(initialPosition);
@@ -256,6 +351,7 @@ public:
         return circle.getGlobalBounds();
     }
 };
+
 class PauseMenu {
 private:
     sf::RectangleShape background;
@@ -271,7 +367,7 @@ public:
             throw std::runtime_error("Unable to load font");
         }
 
-        
+
         background.setSize(sf::Vector2f(400, 300));
         background.setFillColor(sf::Color(50, 50, 50, 200));
         background.setPosition(200.0f, 150.0f);
@@ -309,11 +405,11 @@ public:
             else if (event.type == sf::Event::MouseButtonPressed) {
                 sf::Vector2f mousePos(event.mouseButton.x, event.mouseButton.y);
                 if (closeButton.getGlobalBounds().contains(mousePos)) {
-                    return false; 
+                    return false;
                 }
             }
         }
-        return true; 
+        return true;
     }
 
     void draw() {
@@ -331,23 +427,41 @@ int main() {
     Menu menu(window);
     int leftScore = 0;
     int rightScore = 0;
-    BouncingCircle bouncingCircle(window, 20.0f, { 100.0f, 100.0f }, { 9.0f, 8.0f }, leftScore, rightScore);
+    BouncingCircle bouncingCircle(window, 20.0f, { 100.0f, 100.0f }, { 8.0f, 7.0f }, leftScore, rightScore);
     Paddle leftPaddle(50.0f, 250.0f, 20.0f, 100.0f, 7.0f);
     Paddle rightPaddle(730.0f, 250.0f, 20.0f, 100.0f, 7.0f);
+    Paddle1 bottomPaddle(350.0f, 550.0f, 100.0f, 20.0f, 7.0f);
+    Ball singlePlayerBall(10.f, { 400.f, 300.f }, { 5.f, 4.f });
+    bool insinglePlayer = false;
     DescriptionWindow description(window);
     bool inAnimation = false;
     bool inDescription = false;
+    sf::Color mapColor;
     PauseMenu pauseMenu(window);
     bool isPaused = false;
+    
 
     while (window.isOpen()) {
         if (isPaused) {
             if (!pauseMenu.handleEvents()) {
-                isPaused = false; 
+                isPaused = false;
             }
             else {
                 pauseMenu.draw();
                 continue;
+            }
+        }
+        if (insinglePlayer) {
+            singlePlayerBall.update(window);
+            window.clear(sf::Color::Black);  
+            singlePlayerBall.draw(window);  
+            bottomPaddle.draw(window);
+            window.display();
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
+                bottomPaddle.moveLeft();
+            }
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
+                bottomPaddle.moveRight(window.getSize().x);
             }
         }
         if (inDescription) {
@@ -358,11 +472,15 @@ int main() {
                 menu.resetDescriptionSelected();
             }
         }
+        
         else if (!inAnimation) {
             menu.handleEvents();
 
             if (menu.isStartSelected()) {
                 inAnimation = true;
+            }
+            else if (menu.issinglepSelected()) {
+                insinglePlayer = true;
             }
             else if (menu.isDescriptionSelected()) {
                 inDescription = true;
@@ -396,7 +514,7 @@ int main() {
             }
 
             bouncingCircle.update(leftPaddle, rightPaddle);
-            window.clear(sf::Color::Green);
+            window.clear();
             bouncingCircle.draw();
             leftPaddle.draw(window);
             rightPaddle.draw(window);
