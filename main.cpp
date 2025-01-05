@@ -195,79 +195,99 @@ public:
     }
 };
 
-class Ball {
-private:
-    sf::CircleShape shape;
-    sf::Vector2f velocity;
-    Paddle bottomPaddle;
-
+class BallAnimation {
 public:
-    Ball(float radius, sf::Vector2f position, sf::Vector2f initialVelocity)
-        : shape(radius), velocity(initialVelocity), bottomPaddle(350.0f, 550.0f, 100.0f, 20.0f, 7.0f) {
-        shape.setPosition(position);
-        shape.setFillColor(sf::Color::White);
+    BallAnimation(sf::RenderWindow& window)
+        : window(window), ballRadius(10.f), ballVelocity(4.f, -4.f), ballPosition(400.f, 300.f),
+        paddleSize(100.f, 20.f), paddleVelocity(6.f) {
+        ball.setRadius(ballRadius);
+        ball.setFillColor(sf::Color::White);
+        ball.setPosition(ballPosition);
+        initializeBricks();
+        bottomPaddle.setSize(paddleSize);
+        bottomPaddle.setFillColor(sf::Color::Red);
+        bottomPaddle.setPosition(
+            (window.getSize().x - paddleSize.x) / 2.f, 
+            window.getSize().y - paddleSize.y - 10.f   
+        );
     }
+    void initializeBricks() {
+        const int rows = 5;   
+        const int cols = 10;  
+        const float brickWidth = 60.0f;
+        const float brickHeight = 20.0f;
+        const float spacing = 10.0f;
 
-    void update(const sf::RenderWindow& window) {
-        // Aktualizacja pozycji
-        sf::Vector2f position = shape.getPosition();
-        position += velocity;
-
-        // Odbicie od ścian
-        if (position.x <= 0 || position.x + shape.getRadius() * 2 >= window.getSize().x) {
-            velocity.x = -velocity.x;
+        for (int i = 0; i < rows; ++i) {
+            for (int j = 0; j < cols; ++j) {
+                sf::RectangleShape brick;
+                brick.setSize({ brickWidth, brickHeight });
+                brick.setFillColor(sf::Color::Yellow);
+                brick.setPosition(
+                    j * (brickWidth + spacing) + 50.0f,
+                    i * (brickHeight + spacing) + 50.0f
+                );
+                bricks.push_back(brick);
+            }
         }
-        if (position.y <= 0 || position.y + shape.getRadius() * 2 >= window.getSize().y) {
-            velocity.y = -velocity.y;
+    }
+    void update() {
+        ballPosition += ballVelocity;
+        for (auto it = bricks.begin(); it != bricks.end(); ++it) {
+            if (it->getGlobalBounds().intersects(ball.getGlobalBounds())) {
+                bricks.erase(it);  
+                ballVelocity.y = -ballVelocity.y;
+                break; 
+            }
         }
-        sf::FloatRect ballBounds = shape.getGlobalBounds();
+        if (ballPosition.x <= 0 || ballPosition.x + ballRadius * 2 >= window.getSize().x) {
+            ballVelocity.x = -ballVelocity.x;
+        }
+        if (ballPosition.y <= 0) {
+            ballVelocity.y = -ballVelocity.y;
+        }
+        sf::FloatRect ballBounds = ball.getGlobalBounds();
         sf::FloatRect paddleBounds = bottomPaddle.getGlobalBounds();
 
         if (ballBounds.intersects(paddleBounds)) {
-            // Odbicie piłki w górę
-            velocity.y = -std::abs(velocity.y);
-            shape.setPosition(position);
+            ballVelocity.y = -std::abs(ballVelocity.y); 
         }
-        shape.setPosition(position);
+        if (ballPosition.y + ballRadius * 2 >= window.getSize().y) {
+            ballPosition = { 400.f, 300.f }; 
+            ballVelocity = { 4.f, -4.f };    
+        }
+        ball.setPosition(ballPosition);
     }
-    void draw(sf::RenderWindow& window) {
-        window.draw(shape);
-        
+    void handlePaddleMovement() {
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::A) &&
+            bottomPaddle.getPosition().x > 0) {
+            bottomPaddle.move(-paddleVelocity, 0.f);
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::D) &&
+            bottomPaddle.getPosition().x + paddleSize.x < window.getSize().x) {
+            bottomPaddle.move(paddleVelocity, 0.f);
+        }
     }
-};
-class Paddle1 {
+    void draw() {
+        window.draw(ball);
+        window.draw(bottomPaddle);
+        for (const auto& brick : bricks) {
+            window.draw(brick);
+        }
+    }
 private:
-    sf::RectangleShape shape;
-    float speed;
+    sf::RenderWindow& window;
+    sf::CircleShape ball;
+    sf::RectangleShape bottomPaddle;
+    std::vector<sf::RectangleShape> bricks;
+    sf::Vector2f ballVelocity;
+    sf::Vector2f ballPosition;
+    float ballRadius;
 
-public:
-    Paddle1(float x, float y, float width, float height, float speed)
-        : speed(speed) {
-        shape.setSize({ width, height });
-        shape.setFillColor(sf::Color::White);
-        shape.setPosition(x, y);
-    }
-
-    void moveLeft() {
-        if (shape.getPosition().x > 0) {
-            shape.move(-speed, 0);
-        }
-    }
-
-    void moveRight(float windowWidth) {
-        if (shape.getPosition().x + shape.getSize().x < windowWidth) {
-            shape.move(speed, 0);
-        }
-    }
-
-    void draw(sf::RenderWindow& window) {
-        window.draw(shape);
-    }
-
-    sf::FloatRect getGlobalBounds() const {
-        return shape.getGlobalBounds();
-    }
+    sf::Vector2f paddleSize;
+    float paddleVelocity;
 };
+
 class BouncingCircle {
 private:
     sf::CircleShape circle;
@@ -288,8 +308,6 @@ private:
             (window.getSize().x - scoreText.getLocalBounds().width) / 2,
             20);
     }
-
-
 public:
     BouncingCircle(sf::RenderWindow& win, float radius, const sf::Vector2f& initialPosition, const sf::Vector2f& initialVelocity, int& left, int& right)
         : window(win), velocity(initialVelocity), leftScore(left), rightScore(right) {
@@ -306,7 +324,6 @@ public:
 
         updateScoreText();
     }
-
     bool update(const Paddle& leftPaddle, const Paddle& rightPaddle) {
         if (waitingForRestart) {
             if (delayClock.getElapsedTime().asSeconds() >= delayTime) {
@@ -351,7 +368,6 @@ public:
         return circle.getGlobalBounds();
     }
 };
-
 class PauseMenu {
 private:
     sf::RectangleShape background;
@@ -366,8 +382,6 @@ public:
         if (!font.loadFromFile("arial.ttf")) {
             throw std::runtime_error("Unable to load font");
         }
-
-
         background.setSize(sf::Vector2f(400, 300));
         background.setFillColor(sf::Color(50, 50, 50, 200));
         background.setPosition(200.0f, 150.0f);
@@ -424,14 +438,14 @@ public:
 int main() {
     sf::RenderWindow window(sf::VideoMode(800, 600), "Pong");
     window.setFramerateLimit(60);
+
     Menu menu(window);
     int leftScore = 0;
     int rightScore = 0;
     BouncingCircle bouncingCircle(window, 20.0f, { 100.0f, 100.0f }, { 8.0f, 7.0f }, leftScore, rightScore);
     Paddle leftPaddle(50.0f, 250.0f, 20.0f, 100.0f, 7.0f);
     Paddle rightPaddle(730.0f, 250.0f, 20.0f, 100.0f, 7.0f);
-    Paddle1 bottomPaddle(350.0f, 550.0f, 100.0f, 20.0f, 7.0f);
-    Ball singlePlayerBall(10.f, { 400.f, 300.f }, { 5.f, 4.f });
+    BallAnimation ballAnimation(window);
     bool insinglePlayer = false;
     DescriptionWindow description(window);
     bool inAnimation = false;
@@ -440,7 +454,6 @@ int main() {
     PauseMenu pauseMenu(window);
     bool isPaused = false;
     
-
     while (window.isOpen()) {
         if (isPaused) {
             if (!pauseMenu.handleEvents()) {
@@ -452,17 +465,11 @@ int main() {
             }
         }
         if (insinglePlayer) {
-            singlePlayerBall.update(window);
+            ballAnimation.update();
             window.clear(sf::Color::Black);  
-            singlePlayerBall.draw(window);  
-            bottomPaddle.draw(window);
+            ballAnimation.draw();  
+            ballAnimation.handlePaddleMovement();
             window.display();
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
-                bottomPaddle.moveLeft();
-            }
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
-                bottomPaddle.moveRight(window.getSize().x);
-            }
         }
         if (inDescription) {
             description.handleEvents();
