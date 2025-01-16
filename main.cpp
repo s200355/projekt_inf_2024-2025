@@ -3,18 +3,17 @@
 #include <string>
 #include <time.h>
 #include <sstream>
+#include <fstream>
 
 class Menu {
 private:
     sf::RenderWindow& window;
     sf::RectangleShape startButton;
     sf::RectangleShape descriptionButton;
-    sf::RectangleShape historyButton;
     sf::RectangleShape singlep;
     sf::Font font;
     sf::Text startText;
     sf::Text descriptionText;
-    sf::Text historyText;
     sf::Text singleptext;
     bool startSelected = false;
     bool descriptionSelected = false;
@@ -36,18 +35,11 @@ public:
         startButton.setOutlineThickness(5.0f);
         startButton.setOutlineColor(sf::Color::Black);
 
-
         descriptionButton.setSize({ 220.0f, 80.0f });
         descriptionButton.setFillColor(sf::Color::Cyan);
         descriptionButton.setPosition(300.0f, 300.0f);
         descriptionButton.setOutlineThickness(5.0f);
         descriptionButton.setOutlineColor(sf::Color::Black);
-
-        historyButton.setSize({ 220.0f, 80.0f });
-        historyButton.setFillColor(sf::Color::Cyan);
-        historyButton.setPosition(300.0f, 400.0f);
-        historyButton.setOutlineThickness(5.0f);
-        historyButton.setOutlineColor(sf::Color::Black);
 
         singleptext.setFont(font);
         singleptext.setString("1 osoba");
@@ -67,11 +59,6 @@ public:
         descriptionText.setFillColor(sf::Color::Black);
         descriptionText.setPosition(380.0f, 325.0f);
 
-        historyText.setFont(font);
-        historyText.setString("Historia Gier");
-        historyText.setCharacterSize(24);
-        historyText.setFillColor(sf::Color::Black);
-        historyText.setPosition(340.0f, 425.0f);
     }
     void handleEvents() {
         sf::Event event;
@@ -101,10 +88,8 @@ public:
         window.clear(sf::Color::Green);
         window.draw(startButton);
         window.draw(descriptionButton);
-        window.draw(historyButton);
         window.draw(startText);
         window.draw(descriptionText);
-        window.draw(historyText);
         window.draw(singlep);
         window.draw(singleptext);
         window.display();
@@ -197,13 +182,32 @@ public:
 
 class BallAnimation {
 public:
-    BallAnimation(sf::RenderWindow& window)
+    BallAnimation(sf::RenderWindow& window, sf::Font& loadedFont)
         : window(window), ballRadius(10.f), ballVelocity(4.f, -4.f), ballPosition(400.f, 300.f),
-        paddleSize(100.f, 20.f), paddleVelocity(6.f) {
+        paddleSize(100.f, 20.f), paddleVelocity(6.f), font(loadedFont) {
         ball.setRadius(ballRadius);
-        ball.setFillColor(sf::Color::White);
+        ball.setFillColor(sf::Color::Cyan);
         ball.setPosition(ballPosition);
         initializeBricks();
+        if (!font.loadFromFile("arial.ttf")) {
+            throw std::runtime_error("blad");
+        }
+        napis.setFont(font);
+        napis.setString("Zmiana tla: J");
+        napis.setCharacterSize(20);
+        napis.setFillColor(sf::Color::Green);
+        napis.setPosition(30.f, 550.f);
+        convexShape.setPointCount(5);
+        convexShape.setPoint(0, sf::Vector2f(100.f, 100.f));
+        convexShape.setPoint(1, sf::Vector2f(200.f, 50.f));
+        convexShape.setPoint(2, sf::Vector2f(300.f, 150.f));
+        convexShape.setPoint(3, sf::Vector2f(250.f, 250.f));
+        convexShape.setPoint(4, sf::Vector2f(150.f, 200.f));
+
+        convexShape.setFillColor(sf::Color::Green);
+        convexShape.setOutlineThickness(3.f);
+        convexShape.setOutlineColor(sf::Color::White);
+
         bottomPaddle.setSize(paddleSize);
         bottomPaddle.setFillColor(sf::Color::Red);
         bottomPaddle.setPosition(
@@ -212,7 +216,7 @@ public:
         );
     }
     void initializeBricks() {
-        const int rows = 5;   
+        const int rows = 3;   
         const int cols = 10;  
         const float brickWidth = 60.0f;
         const float brickHeight = 20.0f;
@@ -230,6 +234,55 @@ public:
                 bricks.push_back(brick);
             }
         }
+        brickCount = bricks.size();
+    }
+    void saveGameState() {
+        std::ofstream saveFile("game_save.txt");
+        if (saveFile.is_open()) {
+            saveFile << ball.getPosition().x << " " << ball.getPosition().y << "\n";
+            saveFile << (brickCount - bricks.size()) << "\n";
+            saveFile.close();
+            std::cout << "Game state saved!\n";
+        }
+        else {
+            std::cerr << "Failed to save the game state.\n";
+        }
+    }
+    void loadGameState() {
+        std::ifstream loadFile("game_save.txt");
+        if (loadFile.is_open()) {
+            float ballX, ballY;
+            int destroyedBricks;
+
+            loadFile >> ballX >> ballY;
+            ball.setPosition(ballX, ballY);
+
+            loadFile >> destroyedBricks;
+            bricks.clear();
+            initializeBricks();
+            for (int i = 0; i < destroyedBricks; i++) {
+                if (!bricks.empty()) {
+                    bricks.pop_back();
+                }
+            }
+
+            loadFile.close();
+            std::cout << "Game state loaded!\n";
+        }
+        else {
+            std::cerr << "No save file found. Starting new game.\n";
+            resetGameState(); 
+        }
+    }
+    void resetGameState() {
+        ball.setPosition(window.getSize().x / 2, window.getSize().y / 2);
+        bricks.clear(); 
+        initializeBricks();
+        std::cout << "Game state reset!\n";
+    }
+    void startGame() {
+        loadGameState(); 
+        isRunning = true;
     }
     void update() {
         ballPosition += ballVelocity;
@@ -267,22 +320,46 @@ public:
             bottomPaddle.getPosition().x + paddleSize.x < window.getSize().x) {
             bottomPaddle.move(paddleVelocity, 0.f);
         }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) {
+            saveGameState();
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {
+            resetGameState();
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::J)) {
+            if (backgroundColor == sf::Color::Black) {
+                backgroundColor = sf::Color::White;
+            }
+            else {
+                backgroundColor = sf::Color::Black;
+            }
+        }
     }
     void draw() {
+        window.clear(backgroundColor);
         window.draw(ball);
         window.draw(bottomPaddle);
+        window.draw(napis);
+        window.draw(convexShape);
         for (const auto& brick : bricks) {
             window.draw(brick);
         }
+
     }
 private:
+    sf::Color backgroundColor = sf::Color::Black;
     sf::RenderWindow& window;
     sf::CircleShape ball;
     sf::RectangleShape bottomPaddle;
     std::vector<sf::RectangleShape> bricks;
     sf::Vector2f ballVelocity;
     sf::Vector2f ballPosition;
+    sf::ConvexShape convexShape;
+    sf::Text napis;
+    sf::Font& font;
     float ballRadius;
+    bool isRunning = false;
+    int brickCount;
 
     sf::Vector2f paddleSize;
     float paddleVelocity;
@@ -349,6 +426,23 @@ public:
             delayClock.restart();
             updateScoreText();
             return true;
+        }
+        if (rightScore || leftScore > 3) {
+            sf::Text endGameText;
+            endGameText.setFont(font);
+            endGameText.setCharacterSize(50);
+            endGameText.setFillColor(sf::Color::Red);
+            endGameText.setString(leftScore >= 3 ? "Lewy gracz wygral!" : "Prawy gracz wygral!");
+            endGameText.setPosition(
+                (window.getSize().x - endGameText.getLocalBounds().width) / 2,
+                (window.getSize().y - endGameText.getLocalBounds().height) / 2
+            );
+            window.clear();
+            window.draw(endGameText);
+            window.display();
+            sf::sleep(sf::seconds(1));
+            window.close(); 
+            return false;
         }
         if (position.y <= 0 || position.y + circle.getRadius() * 2 >= window.getSize().y) {
             velocity.y = -velocity.y;
@@ -437,6 +531,7 @@ public:
 };
 int main() {
     sf::RenderWindow window(sf::VideoMode(800, 600), "Pong");
+    sf::Font font;
     window.setFramerateLimit(60);
 
     Menu menu(window);
@@ -445,7 +540,7 @@ int main() {
     BouncingCircle bouncingCircle(window, 20.0f, { 100.0f, 100.0f }, { 8.0f, 7.0f }, leftScore, rightScore);
     Paddle leftPaddle(50.0f, 250.0f, 20.0f, 100.0f, 7.0f);
     Paddle rightPaddle(730.0f, 250.0f, 20.0f, 100.0f, 7.0f);
-    BallAnimation ballAnimation(window);
+    BallAnimation ballAnimation(window, font);
     bool insinglePlayer = false;
     DescriptionWindow description(window);
     bool inAnimation = false;
@@ -453,6 +548,7 @@ int main() {
     sf::Color mapColor;
     PauseMenu pauseMenu(window);
     bool isPaused = false;
+    bool inMenu = true;
     
     while (window.isOpen()) {
         if (isPaused) {
@@ -530,4 +626,4 @@ int main() {
     }
 
     return 0;
-}
+}v
