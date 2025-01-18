@@ -189,6 +189,8 @@ public:
         ball.setFillColor(sf::Color::Cyan);
         ball.setPosition(ballPosition);
         initializeBricks();
+        loadGameState();
+        initializeLives();
         if (!font.loadFromFile("arial.ttf")) {
             throw std::runtime_error("blad");
         }
@@ -235,6 +237,15 @@ public:
             }
         }
         brickCount = bricks.size();
+    }
+    void initializeLives() {
+        lifeIndicators.clear();
+        for (int i = 0; i < lives; ++i) {
+            sf::RectangleShape life(sf::Vector2f(20, 20)); 
+            life.setFillColor(sf::Color::Red);           
+            life.setPosition(10 + i * 30, 10);            
+            lifeIndicators.push_back(life);
+        }
     }
     void saveGameState() {
         std::ofstream saveFile("game_save.txt");
@@ -284,6 +295,11 @@ public:
         loadGameState(); 
         isRunning = true;
     }
+    void drawLives(sf::RenderWindow& window) {
+        for (const auto& life : lifeIndicators) {
+            window.draw(life);
+        }
+    }
     void update() {
         ballPosition += ballVelocity;
         for (auto it = bricks.begin(); it != bricks.end(); ++it) {
@@ -306,8 +322,15 @@ public:
             ballVelocity.y = -std::abs(ballVelocity.y); 
         }
         if (ballPosition.y + ballRadius * 2 >= window.getSize().y) {
+            lives--;
             ballPosition = { 400.f, 300.f }; 
-            ballVelocity = { 4.f, -4.f };    
+            ballVelocity = { 4.f, -4.f }; 
+            if (!lifeIndicators.empty()) {
+                lifeIndicators.pop_back();
+            }
+            if (lives <= 0) {
+                exit(0); 
+            }
         }
         ball.setPosition(ballPosition);
     }
@@ -341,6 +364,7 @@ public:
         window.draw(bottomPaddle);
         window.draw(napis);
         window.draw(convexShape);
+        drawLives(window);
         for (const auto& brick : bricks) {
             window.draw(brick);
         }
@@ -355,6 +379,9 @@ private:
     sf::Vector2f ballVelocity;
     sf::Vector2f ballPosition;
     sf::ConvexShape convexShape;
+    int lives = 3;
+    sf::RectangleShape lifeIndicator; 
+    std::vector<sf::RectangleShape> lifeIndicators;
     sf::Text napis;
     sf::Font& font;
     float ballRadius;
@@ -626,4 +653,4 @@ int main() {
     }
 
     return 0;
-}v
+}
