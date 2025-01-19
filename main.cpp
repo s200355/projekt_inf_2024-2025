@@ -106,6 +106,12 @@ public:
     void resetDescriptionSelected() {
         descriptionSelected = false;
     }
+    void resetsinglepSelected() {
+        singlepSelected = false;
+    }
+    void resetmultiSelected() {
+        startSelected = false;
+    }
 };
 
 class DescriptionWindow {
@@ -191,6 +197,7 @@ public:
         initializeBricks();
         loadGameState();
         initializeLives();
+        loadLevel(currentLevel);
         if (!font.loadFromFile("arial.ttf")) {
             throw std::runtime_error("blad");
         }
@@ -271,6 +278,7 @@ public:
             loadFile >> destroyedBricks;
             bricks.clear();
             initializeBricks();
+            loadLevel(currentLevel);
             for (int i = 0; i < destroyedBricks; i++) {
                 if (!bricks.empty()) {
                     bricks.pop_back();
@@ -289,6 +297,7 @@ public:
         ball.setPosition(window.getSize().x / 2, window.getSize().y / 2);
         bricks.clear(); 
         initializeBricks();
+        loadLevel(currentLevel);
         std::cout << "Game state reset!\n";
     }
     void startGame() {
@@ -317,7 +326,19 @@ public:
         }
         sf::FloatRect ballBounds = ball.getGlobalBounds();
         sf::FloatRect paddleBounds = bottomPaddle.getGlobalBounds();
-
+        if (bricks.empty()) {
+            currentLevel++;
+            if (currentLevel > 3) {
+                std::cout << "Gratulacje! Ukończyłeś wszystkie poziomy!\n";
+                window.close();
+            }
+            else {
+                std::cout << "Przechodzisz do poziomu: " << currentLevel << "\n";
+                loadLevel(currentLevel);
+                ball.setPosition(400, 300);
+                ballVelocity = sf::Vector2f(-4.f, -4.f);
+            }
+        }
         if (ballBounds.intersects(paddleBounds)) {
             ballVelocity.y = -std::abs(ballVelocity.y); 
         }
@@ -333,6 +354,37 @@ public:
             }
         }
         ball.setPosition(ballPosition);
+    }
+    void loadLevel(int level) {
+        bricks.clear();
+
+        if (level == 1) {
+            for (int i = 0; i < 3; ++i) {
+                for (int j = 0; j < 10; ++j) {
+                    bricks.push_back(sf::RectangleShape(sf::Vector2f(50, 20)));
+                    bricks.back().setPosition(j * 80 + 10, i * 30 + 50);
+                    bricks.back().setFillColor(sf::Color::Yellow);
+                }
+            }
+        }
+        else if (level == 2) {
+            for (int i = 0; i < 4; ++i) {
+                for (int j = 0; j < 12; ++j) {
+                    bricks.push_back(sf::RectangleShape(sf::Vector2f(40, 20)));
+                    bricks.back().setPosition(j * 60 + 20, i * 40 + 80);
+                    bricks.back().setFillColor(sf::Color::Green);
+                }
+            }
+        }
+        else if (level == 3) {
+            for (int i = 0; i < 5; ++i) {
+                for (int j = 0; j < 8; ++j) {
+                    bricks.push_back(sf::RectangleShape(sf::Vector2f(60, 25)));
+                    bricks.back().setPosition(j * 70 + 15, i * 35 + 100);
+                    bricks.back().setFillColor(sf::Color::Blue);
+                }
+            }
+        }
     }
     void handlePaddleMovement() {
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::A) &&
@@ -380,6 +432,7 @@ private:
     sf::Vector2f ballPosition;
     sf::ConvexShape convexShape;
     int lives = 3;
+    int currentLevel = 1;
     sf::RectangleShape lifeIndicator; 
     std::vector<sf::RectangleShape> lifeIndicators;
     sf::Text napis;
@@ -593,6 +646,10 @@ int main() {
             ballAnimation.draw();  
             ballAnimation.handlePaddleMovement();
             window.display();
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) {
+                insinglePlayer = false;
+                menu.resetsinglepSelected();
+            }
         }
         if (inDescription) {
             description.handleEvents();
@@ -626,6 +683,10 @@ int main() {
                 if (event.type == sf::Event::Closed) {
                     window.close();
                 }
+            }
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) {
+                inAnimation = false;
+                menu.resetmultiSelected();
             }
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::F1)) {
                 isPaused = true;
